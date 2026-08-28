@@ -41,6 +41,7 @@ use self::dispatch::InputDispatcher;
 use super::capture_session::{CaptureSession, CompletionAction, ReconcileAction};
 use crate::capture_plan::{CaptureTarget, DeviceCapturePlan, DispatchPlan, SharedCapturePlans};
 use crate::receiver_access::{ReceiverAccess, ReceiverRequestState, SessionReceiverLease};
+use crate::runtime::hook::SharedHookMaps;
 use crate::runtime::scroll::ScrollInputHandle;
 use crate::runtime::{ActionDispatcher, HidppSessionId};
 
@@ -83,6 +84,7 @@ pub fn spawn(
     receiver_access: ReceiverAccess,
     channel_registry: openlogi_hid::ChannelRegistry,
     outputs: GestureOutputs,
+    hook_maps: SharedHookMaps,
 ) {
     let plans = capture_plans.clone();
     let receiver_requests = receiver_access.subscribe_requests();
@@ -103,6 +105,7 @@ pub fn spawn(
             receiver_access,
             receiver_requests,
             channel_registry,
+            hook_maps,
             outputs,
         ));
     });
@@ -315,12 +318,12 @@ fn restart_deadline(unexpected: bool, now: Instant) -> Option<Instant> {
 }
 
 impl GestureManagerState {
-    fn new(outputs: GestureOutputs) -> Self {
+    fn new(hook_maps: SharedHookMaps, outputs: GestureOutputs) -> Self {
         Self {
             sessions: HashMap::new(),
             pending_restores: HashMap::new(),
             restart_after: HashMap::new(),
-            input_dispatcher: InputDispatcher::new(outputs),
+            input_dispatcher: InputDispatcher::new(hook_maps, outputs),
             lease: std::sync::Weak::new(),
         }
     }
@@ -411,6 +414,7 @@ async fn manage(
     receiver_access: ReceiverAccess,
     mut receiver_requests: watch::Receiver<ReceiverRequestState>,
     channel_registry: openlogi_hid::ChannelRegistry,
+    hook_maps: SharedHookMaps,
     outputs: GestureOutputs,
 ) {
     let (events, mut event_rx) = mpsc::unbounded_channel::<SessionEvent>();
@@ -427,7 +431,7 @@ async fn manage(
         capture: capture_channel,
         registry: channel_registry,
     };
-    let mut state = GestureManagerState::new(outputs);
+    let mut state = GestureManagerState::new(hook_maps, outputs);
     let mut reconcile = true;
 
     loop {
