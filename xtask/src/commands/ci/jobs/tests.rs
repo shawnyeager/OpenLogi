@@ -189,6 +189,29 @@ fn the_default_run_is_the_ci_jobs_only() {
     }
 }
 
+/// The focused i18n command must exercise the crate that owns catalog parity
+/// before the desktop-only wiring and resolution suite. Otherwise a catalog
+/// can drift while the focused command reports green.
+#[test]
+fn focused_i18n_plan_includes_the_catalog_parity_owner() {
+    let sh = Shell::new().expect("a shell");
+    let plan = Job::I18n
+        .plan(&sh, Host::Linux)
+        .expect("the focused i18n plan");
+    let Action::Run(steps) = plan.action else {
+        panic!("the focused i18n suite planned no steps");
+    };
+    let commands: Vec<String> = steps.iter().map(super::super::Step::argv_line).collect();
+
+    assert_eq!(
+        commands,
+        [
+            "cargo test -p openlogi-ui locale",
+            "cargo test -p openlogi-desktop i18n",
+        ]
+    );
+}
+
 /// The host lists are what decides a skip, so they are worth stating: on a
 /// `cfg!` these were only ever evaluated on the host that made them true.
 #[test]

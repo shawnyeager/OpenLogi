@@ -62,9 +62,12 @@ paths:
   style refinement with the caller's, so a bare `Icon` falls through to the current
   font size instead of the 16px `Default` sets. Any icon meant to line up with a
   neighbouring `svg().size_4()` needs an explicit `.size_4()`.
-- Config panels/tabs gate on `Capabilities` (derived from the HID++ feature table),
-  **never** on device `kind` — kind is identity-only (icon/label). A new panel means a
-  new capability in `Capabilities::from_feature_ids` plus a `tabs_for` arm.
+- Config panels and tabs use live measured `Capabilities`, or the last-good measured
+  value retained through a transient failure. Do not add long-lived capability gates
+  based on device `kind`; kind is identity-only (icon/label). The only kind-derived
+  exception is the centralized `Capabilities::presumed_from_kind`, and callers may use
+  it only for a currently offline device that has never been probed. A new panel means
+  a new capability in `Capabilities::from_feature_ids` plus a `tabs_for` arm.
 - Mouse-diagram hotspots come from Logi metadata; if the metadata omits a button
   marker, omit the button — never synthesize hotspot positions.
 - Keep render helpers statically typed (`impl IntoElement` or a concrete element) until
@@ -97,6 +100,10 @@ paths:
 - When changing reusable controls, prefer focused `#[gpui::test]` behavior contracts
   over screenshot coverage: keyboard activation, disabled no-op, controlled selected
   state/callbacks, and independent parent/child interaction targets.
-- Verifying UI changes needs the running app: re-`cargo run -p openlogi-desktop` (a plain
-  `cargo build` leaves the dev bundle stale) after quitting the previous instance
-  (singleton lock). The GUI shows only the empty state unless the agent is running.
+- Verify a visible UI change in the running app. Exercise representative affected
+  states, then inspect a fresh screenshot of those states. State which OS and hardware
+  paths were not exercised. A screenshot is visual evidence, not behavioral proof;
+  retain an exercised interaction or focused test as the behavior check.
+- Re-`cargo run -p openlogi-desktop` for that verification (a plain `cargo build`
+  leaves the dev bundle stale) after quitting the previous instance (singleton lock).
+  The GUI shows only the empty state unless the agent is running.

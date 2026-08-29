@@ -21,9 +21,14 @@ owns the layer. `crates/openlogi-hid/AGENTS.md` points back here.
   feature `0x0005` `DeviceType` — defined in `openlogi-hidpp` — the assets-registry
   string, and `openlogi_core::device::DeviceKind`) — the same small integers mean
   different things in each. Never cross them by raw value; convert at the boundary.
-  `kind` is identity-only; capability decisions come from the feature table.
-- Enumeration runs on a poll with cache/ledger grace logic so sleeping or briefly
-  unreachable devices keep their identity and panels. Changes to probing must keep the
-  "replay last-good inventory through transient failures" behavior intact — run the
-  inventory/watcher tests and think about the partial-failure paths, not just clean
-  enumeration.
+  Live measured capabilities, or the last-good measured value retained by the cache,
+  are authoritative. Do not add long-lived capability gates based on `kind`. The only
+  kind-derived exception is the centralized `Capabilities::presumed_from_kind`, used
+  only for a currently offline device that has never been probed.
+- A hotplug event is only a wake-up hint. A fresh enumeration is the authority after
+  every event or coalesced burst. If the event stream is unavailable or ends, periodic
+  polling must continue to preserve liveness.
+- Cache and ledger grace preserve last-good identity and capabilities through partial
+  or transient probe failures. Changes to probing or reconciliation must preserve that
+  behavior and cover coalesced bursts, event-stream loss, partial failure, and recovery
+  in focused inventory/watcher tests.
